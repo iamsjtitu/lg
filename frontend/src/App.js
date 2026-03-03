@@ -268,6 +268,36 @@ function App() {
     }
   };
 
+  const runIperfTest = async () => {
+    if (!selectedIperfServer) {
+      toast.error("Please select an iperf3 server");
+      return;
+    }
+
+    setIsIperfTesting(true);
+    setTestResult("");
+    setActiveTest("iperf");
+
+    const server = iperfServers.find(s => s.host === selectedIperfServer);
+    
+    try {
+      const response = await axios.post(`${API}/network/iperf`, {
+        server: selectedIperfServer,
+        port: server?.port || 5201,
+        duration: 5,
+        reverse: iperfMode === "download",
+      });
+      setTestResult(response.data.result);
+      toast.success(`iperf3 ${iperfMode} test completed`);
+      fetchTestHistory();
+    } catch (error) {
+      toast.error(`iperf3 test failed: ${error.response?.data?.detail || error.message}`);
+      setTestResult(`Error: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setIsIperfTesting(false);
+    }
+  };
+
   const runSpeedTest = async () => {
     setIsSpeedTesting(true);
     setSpeedTestResult(null);
