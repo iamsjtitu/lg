@@ -343,6 +343,9 @@ function App() {
       bgp: <Network className="w-3 h-3" />,
       dns: <Globe className="w-3 h-3" />,
       whois: <FileText className="w-3 h-3" />,
+      iperf: <Wifi className="w-3 h-3" />,
+      "iperf3-download": <Download className="w-3 h-3" />,
+      "iperf3-upload": <Upload className="w-3 h-3" />,
     };
     return icons[testType] || <Terminal className="w-3 h-3" />;
   };
