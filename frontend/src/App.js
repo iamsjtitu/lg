@@ -906,6 +906,7 @@ function App() {
               <Badge variant="outline" className="text-xs">DNS</Badge>
               <Badge variant="outline" className="text-xs">WHOIS</Badge>
               <Badge variant="outline" className="text-xs">BGP</Badge>
+              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-600 border-emerald-200">iPerf3</Badge>
             </div>
           </div>
         </div>
