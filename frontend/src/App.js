@@ -159,10 +159,29 @@ function App() {
   
   // Whois state
   const [whoisDomain, setWhoisDomain] = useState("");
+  
+  // iperf3 state
+  const [iperfServers, setIperfServers] = useState([]);
+  const [selectedIperfServer, setSelectedIperfServer] = useState("");
+  const [iperfMode, setIperfMode] = useState("download");
+  const [isIperfTesting, setIsIperfTesting] = useState(false);
 
   useEffect(() => {
     fetchTestHistory();
+    fetchIperfServers();
   }, []);
+
+  const fetchIperfServers = async () => {
+    try {
+      const response = await axios.get(`${API}/iperf-servers`);
+      setIperfServers(response.data.servers);
+      if (response.data.servers.length > 0) {
+        setSelectedIperfServer(response.data.servers[0].host);
+      }
+    } catch (error) {
+      console.error("Failed to fetch iperf servers");
+    }
+  };
 
   const fetchTestHistory = async () => {
     try {
