@@ -4,13 +4,14 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import subprocess
+import asyncio
+import re
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-import random
-import asyncio
 import httpx
 
 ROOT_DIR = Path(__file__).parent
@@ -27,18 +28,15 @@ app = FastAPI(title="Host9x Looking Glass API")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Server Locations
+# Server Location (this demo server)
 SERVER_LOCATIONS = [
-    {"id": "nl", "name": "Netherlands", "city": "Amsterdam", "country": "NL", "ip": "185.107.56.1", "lat": 52.3676, "lon": 4.9041},
-    {"id": "de", "name": "Germany", "city": "Frankfurt", "country": "DE", "ip": "195.201.42.1", "lat": 50.1109, "lon": 8.6821},
-    {"id": "it", "name": "Italy", "city": "Milan", "country": "IT", "ip": "185.94.188.1", "lat": 45.4642, "lon": 9.1900},
-    {"id": "in", "name": "Mumbai", "city": "Mumbai", "country": "IN", "ip": "103.21.124.1", "lat": 19.0760, "lon": 72.8777},
+    {"id": "demo", "name": "Demo Server", "city": "Cloud", "country": "US", "ip": "Demo", "lat": 40.7128, "lon": -74.0060},
 ]
 
 # Models
 class NetworkTestRequest(BaseModel):
     target: str
-    source_location: str
+    source_location: str = "demo"
 
 class NetworkTestResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -50,9 +48,6 @@ class NetworkTestResult(BaseModel):
     result: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: str = "completed"
-
-class SpeedTestRequest(BaseModel):
-    location: str
 
 class SpeedTestResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -76,93 +71,72 @@ class GeolocationResult(BaseModel):
     org: str
     timezone: str
 
-# Helper functions
-def get_location_by_id(location_id: str):
-    for loc in SERVER_LOCATIONS:
-        if loc["id"] == location_id:
-            return loc
-    return None
+class DNSLookupRequest(BaseModel):
+    domain: str
+    record_type: str = "A"
 
-def simulate_ping(target: str, hops: int = 4):
-    """Simulate ping results"""
-    lines = [f"PING {target} ({target}) 56(84) bytes of data."]
-    for i in range(hops):
-        latency = round(random.uniform(1, 50) + (i * 5), 3)
-        lines.append(f"64 bytes from {target}: icmp_seq={i+1} ttl={64-i} time={latency} ms")
-    
-    avg_latency = round(random.uniform(10, 40), 3)
-    min_lat = round(avg_latency * 0.8, 3)
-    max_lat = round(avg_latency * 1.4, 3)
-    lines.append(f"\n--- {target} ping statistics ---")
-    lines.append(f"{hops} packets transmitted, {hops} received, 0% packet loss")
-    lines.append(f"rtt min/avg/max/mdev = {min_lat}/{avg_latency}/{max_lat}/{round(max_lat-min_lat, 3)} ms")
-    return "\n".join(lines)
+class WhoisRequest(BaseModel):
+    domain: str
 
-def simulate_traceroute(target: str):
-    """Simulate traceroute results"""
-    lines = [f"traceroute to {target} ({target}), 30 hops max, 60 byte packets"]
-    hops = random.randint(8, 15)
+# Security: Validate and sanitize input
+def sanitize_target(target: str) -> str:
+    """Sanitize target to prevent command injection"""
+    # Allow only alphanumeric, dots, hyphens, and colons (for IPv6)
+    if not re.match(r'^[a-zA-Z0-9\.\-:]+$', target):
+        raise HTTPException(status_code=400, detail="Invalid target format. Only alphanumeric, dots, hyphens allowed.")
     
-    for i in range(1, hops + 1):
-        ip = f"{random.randint(1,254)}.{random.randint(0,254)}.{random.randint(0,254)}.{random.randint(1,254)}"
-        lat1 = round(random.uniform(1, 20) + (i * 3), 3)
-        lat2 = round(lat1 + random.uniform(-2, 5), 3)
-        lat3 = round(lat1 + random.uniform(-2, 5), 3)
-        hostname = f"hop-{i}.router.net" if random.random() > 0.3 else ip
-        lines.append(f" {i:2}  {hostname} ({ip})  {lat1} ms  {lat2} ms  {lat3} ms")
+    # Max length check
+    if len(target) > 253:
+        raise HTTPException(status_code=400, detail="Target too long")
     
-    lines.append(f" {hops+1}  {target} ({target})  {round(random.uniform(20, 80), 3)} ms")
-    return "\n".join(lines)
-
-def simulate_mtr(target: str):
-    """Simulate MTR results"""
-    lines = [
-        f"Start: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}",
-        f"HOST: host9x-{random.choice(['nl', 'de', 'it', 'in'])}                Loss%   Snt   Last   Avg  Best  Wrst StDev",
-        ""
+    # Block local/private addresses for security
+    blocked_patterns = [
+        r'^localhost$',
+        r'^127\.',
+        r'^10\.',
+        r'^172\.(1[6-9]|2[0-9]|3[01])\.',
+        r'^192\.168\.',
+        r'^0\.',
+        r'^169\.254\.',
     ]
-    hops = random.randint(8, 12)
+    for pattern in blocked_patterns:
+        if re.match(pattern, target, re.IGNORECASE):
+            raise HTTPException(status_code=400, detail="Private/local addresses not allowed")
     
-    for i in range(1, hops + 1):
-        ip = f"{random.randint(1,254)}.{random.randint(0,254)}.{random.randint(0,254)}.{random.randint(1,254)}"
-        loss = random.choice([0, 0, 0, 0, 0, round(random.uniform(0, 5), 1)])
-        snt = 10
-        last = round(random.uniform(5, 30) + (i * 2), 1)
-        avg = round(last + random.uniform(-3, 3), 1)
-        best = round(avg * 0.7, 1)
-        wrst = round(avg * 1.5, 1)
-        stdev = round(random.uniform(0.5, 5), 1)
-        hostname = f"hop-{i}.network.net"
-        lines.append(f" {i:2}.|-- {hostname:30} {loss:5.1f}%  {snt:4}  {last:5.1f}  {avg:5.1f}  {best:5.1f}  {wrst:5.1f}  {stdev:5.1f}")
-    
-    lines.append(f" {hops+1}.|-- {target:30}   0.0%  {10:4}  {round(random.uniform(20, 50), 1):5.1f}  {round(random.uniform(25, 55), 1):5.1f}  {round(random.uniform(15, 25), 1):5.1f}  {round(random.uniform(60, 90), 1):5.1f}  {round(random.uniform(5, 15), 1):5.1f}")
-    return "\n".join(lines)
+    return target
 
-def simulate_bgp(target: str):
-    """Simulate BGP route lookup"""
-    asn = random.randint(1000, 65000)
-    prefix = f"{target.split('.')[0]}.{target.split('.')[1]}.0.0/16" if '.' in target else f"{target}/24"
-    
-    lines = [
-        f"BGP routing table entry for {prefix}",
-        f"Paths: (3 available, best #1)",
-        f"  Advertised to non peer-group peers:",
-        f"",
-        f"  AS Path: {asn} {random.randint(1000, 65000)} {random.randint(1000, 65000)} i",
-        f"    Origin: IGP, metric: 100, localpref: 100, weight: 0, valid, external, best",
-        f"    Community: {asn}:100 {asn}:200",
-        f"    Last update: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC",
-        f"",
-        f"  AS Path: {random.randint(1000, 65000)} {asn} i",
-        f"    Origin: IGP, metric: 200, localpref: 90, weight: 0, valid, external",
-        f"    Last update: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC",
-    ]
-    return "\n".join(lines)
+async def run_command(cmd: List[str], timeout: int = 30) -> str:
+    """Run shell command asynchronously with timeout"""
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout
+        )
+        
+        output = stdout.decode('utf-8', errors='replace')
+        if stderr and process.returncode != 0:
+            output += f"\n[stderr]: {stderr.decode('utf-8', errors='replace')}"
+        
+        return output.strip() if output.strip() else "No output received"
+        
+    except asyncio.TimeoutError:
+        process.kill()
+        return f"Command timed out after {timeout} seconds"
+    except FileNotFoundError:
+        return f"Command not found: {cmd[0]}"
+    except Exception as e:
+        return f"Error executing command: {str(e)}"
 
 # Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Host9x Looking Glass API", "version": "1.0.0"}
+    return {"message": "Host9x Looking Glass API", "version": "2.0.0", "mode": "REAL COMMANDS"}
 
 @api_router.get("/locations")
 async def get_locations():
@@ -170,19 +144,18 @@ async def get_locations():
 
 @api_router.post("/network/ping", response_model=NetworkTestResult)
 async def run_ping(request: NetworkTestRequest):
-    location = get_location_by_id(request.source_location)
-    if not location:
-        raise HTTPException(status_code=400, detail="Invalid source location")
+    """Execute real ping command"""
+    target = sanitize_target(request.target)
     
-    # Simulate delay
-    await asyncio.sleep(random.uniform(0.5, 1.5))
+    # Run ping: 4 packets, 1 second interval, 10 second timeout
+    cmd = ["ping", "-c", "4", "-W", "5", target]
+    result = await run_command(cmd, timeout=20)
     
-    result = simulate_ping(request.target)
     test_result = NetworkTestResult(
         test_type="ping",
-        target=request.target,
-        source_location=request.source_location,
-        source_name=f"{location['name']} ({location['city']})",
+        target=target,
+        source_location="demo",
+        source_name="Demo Server (Real)",
         result=result
     )
     
@@ -195,18 +168,18 @@ async def run_ping(request: NetworkTestRequest):
 
 @api_router.post("/network/traceroute", response_model=NetworkTestResult)
 async def run_traceroute(request: NetworkTestRequest):
-    location = get_location_by_id(request.source_location)
-    if not location:
-        raise HTTPException(status_code=400, detail="Invalid source location")
+    """Execute real traceroute command"""
+    target = sanitize_target(request.target)
     
-    await asyncio.sleep(random.uniform(1, 2))
+    # Run traceroute: max 20 hops, 3 second wait
+    cmd = ["traceroute", "-m", "20", "-w", "3", target]
+    result = await run_command(cmd, timeout=60)
     
-    result = simulate_traceroute(request.target)
     test_result = NetworkTestResult(
         test_type="traceroute",
-        target=request.target,
-        source_location=request.source_location,
-        source_name=f"{location['name']} ({location['city']})",
+        target=target,
+        source_location="demo",
+        source_name="Demo Server (Real)",
         result=result
     )
     
@@ -218,18 +191,74 @@ async def run_traceroute(request: NetworkTestRequest):
 
 @api_router.post("/network/mtr", response_model=NetworkTestResult)
 async def run_mtr(request: NetworkTestRequest):
-    location = get_location_by_id(request.source_location)
-    if not location:
-        raise HTTPException(status_code=400, detail="Invalid source location")
+    """Execute real MTR command"""
+    target = sanitize_target(request.target)
     
-    await asyncio.sleep(random.uniform(1.5, 2.5))
+    # Run mtr: report mode, 5 cycles
+    cmd = ["mtr", "--report", "--report-cycles", "5", target]
+    result = await run_command(cmd, timeout=60)
     
-    result = simulate_mtr(request.target)
     test_result = NetworkTestResult(
         test_type="mtr",
-        target=request.target,
-        source_location=request.source_location,
-        source_name=f"{location['name']} ({location['city']})",
+        target=target,
+        source_location="demo",
+        source_name="Demo Server (Real)",
+        result=result
+    )
+    
+    doc = test_result.model_dump()
+    doc['timestamp'] = doc['timestamp'].isoformat()
+    await db.test_history.insert_one(doc)
+    
+    return test_result
+
+@api_router.post("/network/dns", response_model=NetworkTestResult)
+async def run_dns_lookup(request: DNSLookupRequest):
+    """Execute real DNS lookup"""
+    domain = sanitize_target(request.domain)
+    record_type = request.record_type.upper()
+    
+    # Validate record type
+    valid_types = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "PTR"]
+    if record_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Invalid record type. Use: {', '.join(valid_types)}")
+    
+    # Run dig command
+    cmd = ["dig", "+noall", "+answer", "+stats", record_type, domain]
+    result = await run_command(cmd, timeout=15)
+    
+    test_result = NetworkTestResult(
+        test_type="dns",
+        target=f"{domain} ({record_type})",
+        source_location="demo",
+        source_name="Demo Server (Real)",
+        result=result if result.strip() else f"No {record_type} records found for {domain}"
+    )
+    
+    doc = test_result.model_dump()
+    doc['timestamp'] = doc['timestamp'].isoformat()
+    await db.test_history.insert_one(doc)
+    
+    return test_result
+
+@api_router.post("/network/whois", response_model=NetworkTestResult)
+async def run_whois(request: WhoisRequest):
+    """Execute real WHOIS lookup"""
+    domain = sanitize_target(request.domain)
+    
+    # Run whois command
+    cmd = ["whois", domain]
+    result = await run_command(cmd, timeout=30)
+    
+    # Truncate if too long
+    if len(result) > 5000:
+        result = result[:5000] + "\n\n... [Output truncated - too long]"
+    
+    test_result = NetworkTestResult(
+        test_type="whois",
+        target=domain,
+        source_location="demo",
+        source_name="Demo Server (Real)",
         result=result
     )
     
@@ -241,18 +270,59 @@ async def run_mtr(request: NetworkTestRequest):
 
 @api_router.post("/network/bgp", response_model=NetworkTestResult)
 async def run_bgp(request: NetworkTestRequest):
-    location = get_location_by_id(request.source_location)
-    if not location:
-        raise HTTPException(status_code=400, detail="Invalid source location")
+    """BGP lookup - uses external API since we don't have BGP access"""
+    target = sanitize_target(request.target)
     
-    await asyncio.sleep(random.uniform(0.5, 1))
+    try:
+        # Use bgpview.io API for BGP info
+        async with httpx.AsyncClient() as http_client:
+            # Try to get prefix info
+            response = await http_client.get(
+                f"https://api.bgpview.io/ip/{target}",
+                timeout=15.0
+            )
+            data = response.json()
+            
+            if data.get("status") == "ok" and data.get("data"):
+                ip_data = data["data"]
+                result_lines = [
+                    f"BGP Information for {target}",
+                    f"=" * 50,
+                    f"",
+                ]
+                
+                if ip_data.get("prefixes"):
+                    for prefix in ip_data["prefixes"][:5]:
+                        result_lines.extend([
+                            f"Prefix: {prefix.get('prefix', 'N/A')}",
+                            f"  ASN: {prefix.get('asn', {}).get('asn', 'N/A')}",
+                            f"  AS Name: {prefix.get('asn', {}).get('name', 'N/A')}",
+                            f"  Description: {prefix.get('asn', {}).get('description', 'N/A')}",
+                            f"  Country: {prefix.get('asn', {}).get('country_code', 'N/A')}",
+                            f""
+                        ])
+                
+                if ip_data.get("rir_allocation"):
+                    rir = ip_data["rir_allocation"]
+                    result_lines.extend([
+                        f"RIR Allocation:",
+                        f"  RIR: {rir.get('rir_name', 'N/A')}",
+                        f"  Prefix: {rir.get('prefix', 'N/A')}",
+                        f"  Date: {rir.get('date_allocated', 'N/A')}",
+                    ])
+                
+                result = "\n".join(result_lines)
+            else:
+                result = f"No BGP information found for {target}"
+                
+    except Exception as e:
+        result = f"BGP lookup failed: {str(e)}"
     
-    result = simulate_bgp(request.target)
     test_result = NetworkTestResult(
         test_type="bgp",
-        target=request.target,
-        source_location=request.source_location,
-        source_name=f"{location['name']} ({location['city']})",
+        target=target,
+        source_location="demo",
+        source_name="Demo Server (BGPView API)",
         result=result
     )
     
@@ -263,19 +333,29 @@ async def run_bgp(request: NetworkTestRequest):
     return test_result
 
 @api_router.post("/speed-test", response_model=SpeedTestResult)
-async def run_speed_test(request: SpeedTestRequest):
-    location = get_location_by_id(request.location)
-    if not location:
-        raise HTTPException(status_code=400, detail="Invalid location")
+async def run_speed_test():
+    """Speed test - measures latency to common endpoints"""
+    import time
+    import random
     
-    await asyncio.sleep(random.uniform(2, 4))
+    # Measure latency to google DNS
+    start = time.time()
+    ping_result = await run_command(["ping", "-c", "3", "-W", "2", "8.8.8.8"], timeout=10)
+    latency = (time.time() - start) * 1000 / 3  # Average per ping
     
+    # Extract actual latency from ping output if possible
+    latency_match = re.search(r'avg[^=]*=\s*[\d.]+/([\d.]+)/', ping_result)
+    if latency_match:
+        latency = float(latency_match.group(1))
+    
+    # Note: Real speed test would require downloading test files
+    # For demo, we estimate based on server capabilities
     result = SpeedTestResult(
-        location=request.location,
-        location_name=f"{location['name']} ({location['city']})",
-        download_speed=round(random.uniform(500, 1000), 2),
-        upload_speed=round(random.uniform(200, 500), 2),
-        latency=round(random.uniform(5, 50), 2)
+        location="demo",
+        location_name="Demo Server",
+        download_speed=round(random.uniform(800, 1000), 2),  # Simulated
+        upload_speed=round(random.uniform(400, 600), 2),      # Simulated
+        latency=round(latency, 2)                              # Real latency
     )
     
     doc = result.model_dump()
@@ -286,9 +366,15 @@ async def run_speed_test(request: SpeedTestRequest):
 
 @api_router.get("/geolocation/{ip}")
 async def get_geolocation(ip: str):
+    """Real IP geolocation lookup"""
+    sanitized_ip = sanitize_target(ip)
+    
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,org,query", timeout=10.0)
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.get(
+                f"http://ip-api.com/json/{sanitized_ip}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,org,query",
+                timeout=10.0
+            )
             data = response.json()
             
             if data.get("status") == "fail":
@@ -306,8 +392,8 @@ async def get_geolocation(ip: str):
                 org=data.get("org", "Unknown"),
                 timezone=data.get("timezone", "Unknown")
             )
-    except httpx.RequestError:
-        raise HTTPException(status_code=500, detail="Failed to fetch geolocation data")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch geolocation: {str(e)}")
 
 @api_router.get("/test-history")
 async def get_test_history(limit: int = 20):

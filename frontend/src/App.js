@@ -11,14 +11,14 @@ import {
   Terminal,
   Search,
   RefreshCw,
-  Download,
-  Upload,
   Clock,
   ChevronRight,
   Network,
   Route,
   Gauge,
   History,
+  FileText,
+  Cpu,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,59 +31,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
-
-// Location Map Component
-const LocationMap = ({ locations, selectedLocation, onSelect }) => {
-  const mapPositions = {
-    nl: { top: "28%", left: "48%" },
-    de: { top: "32%", left: "50%" },
-    it: { top: "40%", left: "51%" },
-    in: { top: "52%", left: "72%" },
-  };
-
-  return (
-    <div
-      className="server-location-map relative h-48 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200"
-      data-testid="location-map"
-    >
-      {/* Simple World Map Dots */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-20">
-        <Globe className="w-32 h-32 text-slate-400" />
-      </div>
-
-      {locations.map((loc) => (
-        <button
-          key={loc.id}
-          className={`location-dot ${selectedLocation === loc.id ? "active" : ""}`}
-          style={mapPositions[loc.id]}
-          onClick={() => onSelect(loc.id)}
-          title={`${loc.name} - ${loc.city}`}
-          data-testid={`location-dot-${loc.id}`}
-        />
-      ))}
-
-      {/* Location Labels */}
-      {locations.map((loc) => (
-        <div
-          key={`label-${loc.id}`}
-          className="absolute text-xs font-medium text-slate-600 transform -translate-x-1/2"
-          style={{
-            top: `calc(${mapPositions[loc.id].top} + 20px)`,
-            left: mapPositions[loc.id].left,
-          }}
-        >
-          {loc.city}
-        </div>
-      ))}
-    </div>
-  );
-};
 
 // Terminal Window Component
 const TerminalWindow = ({ title, content, isLoading }) => (
@@ -93,18 +45,21 @@ const TerminalWindow = ({ title, content, isLoading }) => (
       <div className="terminal-dot bg-yellow-500" />
       <div className="terminal-dot bg-green-500" />
       <span className="ml-3 text-sm text-slate-400">{title}</span>
+      <Badge variant="outline" className="ml-auto text-xs text-green-400 border-green-400/30">
+        REAL OUTPUT
+      </Badge>
     </div>
-    <div className="terminal-content min-h-[200px] max-h-[400px] overflow-y-auto">
+    <div className="terminal-content min-h-[200px] max-h-[500px] overflow-y-auto">
       {isLoading ? (
         <div className="flex items-center gap-2 text-green-400">
           <RefreshCw className="w-4 h-4 animate-spin" />
-          <span>Running test...</span>
+          <span>Executing command...</span>
         </div>
       ) : content ? (
-        <pre className="text-green-400">{content}</pre>
+        <pre className="text-green-400 whitespace-pre-wrap">{content}</pre>
       ) : (
         <span className="text-slate-500">
-          Results will appear here after running a test...
+          $ Results will appear here after running a test...
         </span>
       )}
     </div>
@@ -112,7 +67,7 @@ const TerminalWindow = ({ title, content, isLoading }) => (
 );
 
 // Speed Gauge Component
-const SpeedGauge = ({ value, max, label, type }) => {
+const SpeedGauge = ({ value, max, label, type, isReal }) => {
   const percentage = Math.min((value / max) * 100, 100);
   const colors = {
     download: "bg-emerald-500",
@@ -129,7 +84,10 @@ const SpeedGauge = ({ value, max, label, type }) => {
         />
       </div>
       <div className="flex items-center justify-between w-full">
-        <span className="text-sm text-slate-600">{label}</span>
+        <span className="text-sm text-slate-600 flex items-center gap-1">
+          {label}
+          {isReal && <Badge variant="outline" className="text-[10px] px-1 py-0">REAL</Badge>}
+        </span>
         <span className="font-mono font-semibold text-slate-900">
           {value.toFixed(2)} {type === "latency" ? "ms" : "Mbps"}
         </span>
@@ -181,8 +139,6 @@ const GeolocationCard = ({ data }) => {
 };
 
 function App() {
-  const [locations, setLocations] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState("nl");
   const [targetIP, setTargetIP] = useState("");
   const [activeTest, setActiveTest] = useState("ping");
   const [testResult, setTestResult] = useState("");
@@ -193,20 +149,17 @@ function App() {
   const [geoResult, setGeoResult] = useState(null);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
   const [testHistory, setTestHistory] = useState([]);
+  
+  // DNS lookup state
+  const [dnsDomain, setDnsDomain] = useState("");
+  const [dnsRecordType, setDnsRecordType] = useState("A");
+  
+  // Whois state
+  const [whoisDomain, setWhoisDomain] = useState("");
 
   useEffect(() => {
-    fetchLocations();
     fetchTestHistory();
   }, []);
-
-  const fetchLocations = async () => {
-    try {
-      const response = await axios.get(`${API}/locations`);
-      setLocations(response.data.locations);
-    } catch (error) {
-      toast.error("Failed to fetch server locations");
-    }
-  };
 
   const fetchTestHistory = async () => {
     try {
@@ -229,13 +182,65 @@ function App() {
     try {
       const response = await axios.post(`${API}/network/${activeTest}`, {
         target: targetIP,
-        source_location: selectedLocation,
+        source_location: "demo",
       });
       setTestResult(response.data.result);
-      toast.success(`${activeTest.toUpperCase()} test completed`);
+      toast.success(`${activeTest.toUpperCase()} completed (Real Output)`);
       fetchTestHistory();
     } catch (error) {
       toast.error(`Test failed: ${error.response?.data?.detail || error.message}`);
+      setTestResult(`Error: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runDNSLookup = async () => {
+    if (!dnsDomain.trim()) {
+      toast.error("Please enter a domain");
+      return;
+    }
+
+    setIsLoading(true);
+    setTestResult("");
+    setActiveTest("dns");
+
+    try {
+      const response = await axios.post(`${API}/network/dns`, {
+        domain: dnsDomain,
+        record_type: dnsRecordType,
+      });
+      setTestResult(response.data.result);
+      toast.success("DNS lookup completed (Real Output)");
+      fetchTestHistory();
+    } catch (error) {
+      toast.error(`DNS lookup failed: ${error.response?.data?.detail || error.message}`);
+      setTestResult(`Error: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runWhoisLookup = async () => {
+    if (!whoisDomain.trim()) {
+      toast.error("Please enter a domain");
+      return;
+    }
+
+    setIsLoading(true);
+    setTestResult("");
+    setActiveTest("whois");
+
+    try {
+      const response = await axios.post(`${API}/network/whois`, {
+        domain: whoisDomain,
+      });
+      setTestResult(response.data.result);
+      toast.success("WHOIS lookup completed (Real Output)");
+      fetchTestHistory();
+    } catch (error) {
+      toast.error(`WHOIS lookup failed: ${error.response?.data?.detail || error.message}`);
+      setTestResult(`Error: ${error.response?.data?.detail || error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -246,9 +251,7 @@ function App() {
     setSpeedTestResult(null);
 
     try {
-      const response = await axios.post(`${API}/speed-test`, {
-        location: selectedLocation,
-      });
+      const response = await axios.post(`${API}/speed-test`);
       setSpeedTestResult(response.data);
       toast.success("Speed test completed");
     } catch (error) {
@@ -280,7 +283,17 @@ function App() {
     }
   };
 
-  const selectedLocationData = locations.find((l) => l.id === selectedLocation);
+  const getTestIcon = (testType) => {
+    const icons = {
+      ping: <Zap className="w-3 h-3" />,
+      traceroute: <Route className="w-3 h-3" />,
+      mtr: <Activity className="w-3 h-3" />,
+      bgp: <Network className="w-3 h-3" />,
+      dns: <Globe className="w-3 h-3" />,
+      whois: <FileText className="w-3 h-3" />,
+    };
+    return icons[testType] || <Terminal className="w-3 h-3" />;
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -299,48 +312,37 @@ function App() {
                 <p className="text-xs text-slate-500">Network Looking Glass</p>
               </div>
             </div>
-            <Badge variant="outline" className="hidden sm:flex gap-1">
-              <Activity className="w-3 h-3 text-emerald-500" />
-              All Systems Operational
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Badge className="bg-emerald-500 text-white gap-1">
+                <Cpu className="w-3 h-3" />
+                Real Commands
+              </Badge>
+              <Badge variant="outline" className="hidden sm:flex gap-1">
+                <Activity className="w-3 h-3 text-emerald-500" />
+                Operational
+              </Badge>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="hero-section relative py-12" data-testid="hero-section">
+      <section className="hero-section relative py-8" data-testid="hero-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 mb-3">
               Network Diagnostic Tools
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
-              Test network connectivity from our global server locations.
-              Ping, Traceroute, MTR, BGP lookups, Speed tests and more.
+              Execute <strong>real network commands</strong> from our server.
+              Ping, Traceroute, MTR, DNS, WHOIS, BGP lookups and more.
             </p>
-          </div>
-
-          {/* Location Map */}
-          <div className="max-w-2xl mx-auto">
-            <LocationMap
-              locations={locations}
-              selectedLocation={selectedLocation}
-              onSelect={setSelectedLocation}
-            />
-            {selectedLocationData && (
-              <div className="mt-4 text-center">
-                <Badge className="bg-blue-600">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {selectedLocationData.name} - {selectedLocationData.city}
-                </Badge>
-              </div>
-            )}
           </div>
         </div>
       </section>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Network Tests Panel */}
           <div className="lg:col-span-2 space-y-6">
@@ -349,38 +351,44 @@ function App() {
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Terminal className="w-5 h-5 text-blue-600" />
                   Network Tests
+                  <Badge variant="outline" className="ml-2 text-xs">Real Execution</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
-                {/* Location & Target Selection */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">
-                      Source Location
-                    </label>
-                    <Select
-                      value={selectedLocation}
-                      onValueChange={setSelectedLocation}
-                    >
-                      <SelectTrigger data-testid="location-select">
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id}>
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4" />
-                              {loc.name} ({loc.city})
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">
-                      Target IP / Hostname
-                    </label>
+                {/* Test Type Tabs */}
+                <Tabs value={activeTest} onValueChange={setActiveTest}>
+                  <TabsList className="grid grid-cols-6 w-full" data-testid="test-tabs">
+                    <TabsTrigger value="ping" data-testid="tab-ping">
+                      <Zap className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Ping</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="traceroute" data-testid="tab-traceroute">
+                      <Route className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Trace</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="mtr" data-testid="tab-mtr">
+                      <Activity className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">MTR</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="bgp" data-testid="tab-bgp">
+                      <Network className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">BGP</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="dns" data-testid="tab-dns">
+                      <Globe className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">DNS</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="whois" data-testid="tab-whois">
+                      <FileText className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">WHOIS</span>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Ping/Traceroute/MTR/BGP */}
+                  <TabsContent value="ping" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Send ICMP echo requests to test connectivity and measure round-trip time.
+                    </p>
                     <Input
                       placeholder="e.g., 8.8.8.8 or google.com"
                       value={targetIP}
@@ -388,73 +396,195 @@ function App() {
                       className="ip-input"
                       data-testid="target-input"
                     />
-                  </div>
-                </div>
-
-                {/* Test Type Tabs */}
-                <Tabs value={activeTest} onValueChange={setActiveTest}>
-                  <TabsList className="grid grid-cols-4 w-full" data-testid="test-tabs">
-                    <TabsTrigger value="ping" data-testid="tab-ping">
-                      <Zap className="w-4 h-4 mr-1" />
-                      Ping
-                    </TabsTrigger>
-                    <TabsTrigger value="traceroute" data-testid="tab-traceroute">
-                      <Route className="w-4 h-4 mr-1" />
-                      Traceroute
-                    </TabsTrigger>
-                    <TabsTrigger value="mtr" data-testid="tab-mtr">
-                      <Activity className="w-4 h-4 mr-1" />
-                      MTR
-                    </TabsTrigger>
-                    <TabsTrigger value="bgp" data-testid="tab-bgp">
-                      <Network className="w-4 h-4 mr-1" />
-                      BGP
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="ping" className="mt-4">
-                    <p className="text-sm text-slate-500 mb-4">
-                      Send ICMP echo requests to test connectivity and measure
-                      round-trip time.
-                    </p>
+                    <Button
+                      onClick={runNetworkTest}
+                      disabled={isLoading}
+                      className="w-full bg-[#0F172A] hover:bg-slate-800"
+                      data-testid="run-test-btn"
+                    >
+                      {isLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Running PING...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                          Run PING
+                        </>
+                      )}
+                    </Button>
                   </TabsContent>
-                  <TabsContent value="traceroute" className="mt-4">
-                    <p className="text-sm text-slate-500 mb-4">
+
+                  <TabsContent value="traceroute" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
                       Trace the route packets take to reach the destination.
                     </p>
+                    <Input
+                      placeholder="e.g., 8.8.8.8 or google.com"
+                      value={targetIP}
+                      onChange={(e) => setTargetIP(e.target.value)}
+                      className="ip-input"
+                      data-testid="target-input-trace"
+                    />
+                    <Button
+                      onClick={runNetworkTest}
+                      disabled={isLoading}
+                      className="w-full bg-[#0F172A] hover:bg-slate-800"
+                      data-testid="run-trace-btn"
+                    >
+                      {isLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Running TRACEROUTE...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                          Run TRACEROUTE
+                        </>
+                      )}
+                    </Button>
                   </TabsContent>
-                  <TabsContent value="mtr" className="mt-4">
-                    <p className="text-sm text-slate-500 mb-4">
-                      Combines ping and traceroute for comprehensive network
-                      diagnostics.
+
+                  <TabsContent value="mtr" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Combines ping and traceroute for comprehensive network diagnostics.
                     </p>
+                    <Input
+                      placeholder="e.g., 8.8.8.8 or google.com"
+                      value={targetIP}
+                      onChange={(e) => setTargetIP(e.target.value)}
+                      className="ip-input"
+                      data-testid="target-input-mtr"
+                    />
+                    <Button
+                      onClick={runNetworkTest}
+                      disabled={isLoading}
+                      className="w-full bg-[#0F172A] hover:bg-slate-800"
+                      data-testid="run-mtr-btn"
+                    >
+                      {isLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Running MTR...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                          Run MTR
+                        </>
+                      )}
+                    </Button>
                   </TabsContent>
-                  <TabsContent value="bgp" className="mt-4">
-                    <p className="text-sm text-slate-500 mb-4">
-                      Look up BGP routing information for the target.
+
+                  <TabsContent value="bgp" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Look up BGP routing information using BGPView API.
                     </p>
+                    <Input
+                      placeholder="e.g., 8.8.8.8"
+                      value={targetIP}
+                      onChange={(e) => setTargetIP(e.target.value)}
+                      className="ip-input"
+                      data-testid="target-input-bgp"
+                    />
+                    <Button
+                      onClick={runNetworkTest}
+                      disabled={isLoading}
+                      className="w-full bg-[#0F172A] hover:bg-slate-800"
+                      data-testid="run-bgp-btn"
+                    >
+                      {isLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Looking up BGP...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                          BGP Lookup
+                        </>
+                      )}
+                    </Button>
+                  </TabsContent>
+
+                  {/* DNS Lookup */}
+                  <TabsContent value="dns" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Query DNS records for any domain.
+                    </p>
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <Input
+                        placeholder="e.g., google.com"
+                        value={dnsDomain}
+                        onChange={(e) => setDnsDomain(e.target.value)}
+                        className="ip-input sm:col-span-2"
+                        data-testid="dns-domain-input"
+                      />
+                      <Select value={dnsRecordType} onValueChange={setDnsRecordType}>
+                        <SelectTrigger data-testid="dns-type-select">
+                          <SelectValue placeholder="Record Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"].map((type) => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      onClick={runDNSLookup}
+                      disabled={isLoading}
+                      className="w-full bg-[#0F172A] hover:bg-slate-800"
+                      data-testid="run-dns-btn"
+                    >
+                      {isLoading && activeTest === "dns" ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Looking up DNS...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                          DNS Lookup
+                        </>
+                      )}
+                    </Button>
+                  </TabsContent>
+
+                  {/* WHOIS Lookup */}
+                  <TabsContent value="whois" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Get domain registration and ownership information.
+                    </p>
+                    <Input
+                      placeholder="e.g., google.com"
+                      value={whoisDomain}
+                      onChange={(e) => setWhoisDomain(e.target.value)}
+                      className="ip-input"
+                      data-testid="whois-domain-input"
+                    />
+                    <Button
+                      onClick={runWhoisLookup}
+                      disabled={isLoading}
+                      className="w-full bg-[#0F172A] hover:bg-slate-800"
+                      data-testid="run-whois-btn"
+                    >
+                      {isLoading && activeTest === "whois" ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Looking up WHOIS...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                          WHOIS Lookup
+                        </>
+                      )}
+                    </Button>
                   </TabsContent>
                 </Tabs>
-
-                {/* Run Button */}
-                <Button
-                  onClick={runNetworkTest}
-                  disabled={isLoading}
-                  className="w-full bg-[#0F172A] hover:bg-slate-800"
-                  data-testid="run-test-btn"
-                >
-                  {isLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Running {activeTest.toUpperCase()}...
-                    </>
-                  ) : (
-                    <>
-                      <ChevronRight className="w-4 h-4 mr-2" />
-                      Run {activeTest.toUpperCase()} Test
-                    </>
-                  )}
-                </Button>
 
                 {/* Results Terminal */}
                 <TerminalWindow
@@ -477,9 +607,7 @@ function App() {
                 <div className="flex flex-col sm:flex-row gap-6">
                   <div className="flex-1 space-y-4">
                     <p className="text-sm text-slate-500">
-                      Test download/upload speeds from{" "}
-                      <strong>{selectedLocationData?.name || "selected"}</strong>{" "}
-                      server.
+                      Test connection speeds. Latency is measured with real ping to 8.8.8.8.
                     </p>
                     <Button
                       onClick={runSpeedTest}
@@ -509,18 +637,21 @@ function App() {
                         max={1000}
                         label="Download"
                         type="download"
+                        isReal={false}
                       />
                       <SpeedGauge
                         value={speedTestResult.upload_speed}
                         max={500}
                         label="Upload"
                         type="upload"
+                        isReal={false}
                       />
                       <SpeedGauge
                         value={speedTestResult.latency}
                         max={100}
                         label="Latency"
                         type="latency"
+                        isReal={true}
                       />
                     </div>
                   )}
@@ -572,44 +703,28 @@ function App() {
               </CardContent>
             </Card>
 
-            {/* Server Locations */}
-            <Card className="bento-card" data-testid="locations-panel">
+            {/* Server Info */}
+            <Card className="bento-card" data-testid="server-info-panel">
               <CardHeader className="border-b border-slate-100">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Server className="w-5 h-5 text-blue-600" />
-                  Server Locations
+                  Server Info
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="space-y-2">
-                  {locations.map((loc) => (
-                    <button
-                      key={loc.id}
-                      className={`w-full p-3 rounded-lg text-left transition-all ${
-                        selectedLocation === loc.id
-                          ? "bg-blue-50 border border-blue-200"
-                          : "hover:bg-slate-50 border border-transparent"
-                      }`}
-                      onClick={() => setSelectedLocation(loc.id)}
-                      data-testid={`location-btn-${loc.id}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            selectedLocation === loc.id
-                              ? "bg-blue-600"
-                              : "bg-emerald-500"
-                          }`}
-                        />
-                        <div>
-                          <p className="font-medium text-sm text-slate-900">
-                            {loc.name}
-                          </p>
-                          <p className="text-xs text-slate-500">{loc.city}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                    <span className="text-sm text-slate-600">Location</span>
+                    <Badge variant="outline">Demo Server</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                    <span className="text-sm text-slate-600">Commands</span>
+                    <Badge className="bg-emerald-500">Real Execution</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                    <span className="text-sm text-slate-600">Tools</span>
+                    <span className="text-xs text-slate-500">ping, traceroute, mtr, dig, whois</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -636,12 +751,11 @@ function App() {
                         data-testid={`history-item-${index}`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            {getTestIcon(test.test_type)}
                             {test.test_type?.toUpperCase()}
                           </Badge>
-                          <span className="text-slate-400">
-                            {test.source_location?.toUpperCase()}
-                          </span>
+                          <Clock className="w-3 h-3 text-slate-400" />
                         </div>
                         <p className="font-mono text-slate-700 truncate">
                           {test.target}
@@ -665,14 +779,13 @@ function App() {
               <span className="font-medium text-slate-600">host9x.com</span>
               <span className="text-slate-400">Looking Glass</span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-slate-500">
-              <span>Netherlands</span>
-              <span>•</span>
-              <span>Germany</span>
-              <span>•</span>
-              <span>Italy</span>
-              <span>•</span>
-              <span>Mumbai</span>
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Badge variant="outline" className="text-xs">Ping</Badge>
+              <Badge variant="outline" className="text-xs">Traceroute</Badge>
+              <Badge variant="outline" className="text-xs">MTR</Badge>
+              <Badge variant="outline" className="text-xs">DNS</Badge>
+              <Badge variant="outline" className="text-xs">WHOIS</Badge>
+              <Badge variant="outline" className="text-xs">BGP</Badge>
             </div>
           </div>
         </div>
