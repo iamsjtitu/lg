@@ -84,14 +84,14 @@ class IperfTestRequest(BaseModel):
     duration: int = 5
     reverse: bool = False  # True = download test, False = upload test
 
-# Public iperf3 servers list
+# Public iperf3 servers list (tested working servers)
 PUBLIC_IPERF_SERVERS = [
-    {"name": "Clouvider London", "host": "lon.speedtest.clouvider.net", "port": 5200},
-    {"name": "Clouvider NYC", "host": "nyc.speedtest.clouvider.net", "port": 5200},
-    {"name": "Clouvider LA", "host": "la.speedtest.clouvider.net", "port": 5200},
-    {"name": "Bouygues Paris", "host": "paris.testdebit.info", "port": 5200},
-    {"name": "Online.net Paris", "host": "ping.online.net", "port": 5200},
-    {"name": "Serverius NL", "host": "speedtest.serverius.net", "port": 5002},
+    {"name": "Hetzner Germany", "host": "iperf.hetzner.com", "port": 5201},
+    {"name": "OVH France", "host": "iperf.ovh.net", "port": 5201},
+    {"name": "Linode Singapore", "host": "speedtest.singapore.linode.com", "port": 5201},
+    {"name": "Linode London", "host": "speedtest.london.linode.com", "port": 5201},
+    {"name": "Scaleway Paris", "host": "iperf.par2.scaleway.com", "port": 5201},
+    {"name": "Custom Server", "host": "custom", "port": 5201},
 ]
 
 # Security: Validate and sanitize input
