@@ -86,12 +86,10 @@ class IperfTestRequest(BaseModel):
 
 # Public iperf3 servers list (tested working servers)
 PUBLIC_IPERF_SERVERS = [
-    {"name": "Hetzner Germany", "host": "iperf.hetzner.com", "port": 5201},
-    {"name": "OVH France", "host": "iperf.ovh.net", "port": 5201},
-    {"name": "Linode Singapore", "host": "speedtest.singapore.linode.com", "port": 5201},
-    {"name": "Linode London", "host": "speedtest.london.linode.com", "port": 5201},
-    {"name": "Scaleway Paris", "host": "iperf.par2.scaleway.com", "port": 5201},
-    {"name": "Custom Server", "host": "custom", "port": 5201},
+    {"name": "WTNET Germany", "host": "speedtest.wtnet.de", "port": 5200},
+    {"name": "Worldstream NL", "host": "speedtest.worldstream.nl", "port": 5201},
+    {"name": "fdcservers Chicago", "host": "iperf.fdcservers.net", "port": 5201},
+    {"name": "AS42910 Germany", "host": "lg.ip-projects.de", "port": 5201},
 ]
 
 # Security: Validate and sanitize input
