@@ -412,7 +412,7 @@ function App() {
               <CardContent className="p-6 space-y-6">
                 {/* Test Type Tabs */}
                 <Tabs value={activeTest} onValueChange={setActiveTest}>
-                  <TabsList className="grid grid-cols-6 w-full" data-testid="test-tabs">
+                  <TabsList className="grid grid-cols-7 w-full" data-testid="test-tabs">
                     <TabsTrigger value="ping" data-testid="tab-ping">
                       <Zap className="w-4 h-4 sm:mr-1" />
                       <span className="hidden sm:inline">Ping</span>
@@ -436,6 +436,10 @@ function App() {
                     <TabsTrigger value="whois" data-testid="tab-whois">
                       <FileText className="w-4 h-4 sm:mr-1" />
                       <span className="hidden sm:inline">WHOIS</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="iperf" data-testid="tab-iperf">
+                      <Wifi className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">iPerf3</span>
                     </TabsTrigger>
                   </TabsList>
 
