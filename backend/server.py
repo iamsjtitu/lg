@@ -133,6 +133,97 @@ async def run_command(cmd: List[str], timeout: int = 30) -> str:
     except Exception as e:
         return f"Error executing command: {str(e)}"
 
+async def tcp_ping(host: str, port: int = 80, count: int = 4) -> str:
+    """TCP-based ping alternative when ICMP is not available"""
+    import socket
+    import time
+    
+    results = []
+    results.append(f"TCP PING {host}:{port}")
+    results.append(f"Connecting to {host} on port {port}...")
+    results.append("")
+    
+    latencies = []
+    successful = 0
+    
+    for i in range(count):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            
+            start_time = time.time()
+            sock.connect((host, port))
+            end_time = time.time()
+            
+            latency = (end_time - start_time) * 1000
+            latencies.append(latency)
+            successful += 1
+            
+            results.append(f"Connected to {host}:{port} - seq={i+1} time={latency:.2f} ms")
+            sock.close()
+            
+        except socket.timeout:
+            results.append(f"Connection to {host}:{port} - seq={i+1} timed out")
+        except socket.error as e:
+            results.append(f"Connection to {host}:{port} - seq={i+1} failed: {str(e)}")
+        
+        await asyncio.sleep(0.5)
+    
+    results.append("")
+    results.append(f"--- {host} TCP ping statistics ---")
+    results.append(f"{count} connections attempted, {successful} successful, {((count-successful)/count)*100:.1f}% failed")
+    
+    if latencies:
+        results.append(f"rtt min/avg/max = {min(latencies):.2f}/{sum(latencies)/len(latencies):.2f}/{max(latencies):.2f} ms")
+    
+    return "\n".join(results)
+
+async def http_ping(host: str, count: int = 4) -> str:
+    """HTTP-based ping for testing connectivity"""
+    import time
+    
+    results = []
+    url = f"http://{host}" if not host.startswith("http") else host
+    
+    # Remove http:// for display
+    display_host = host.replace("http://", "").replace("https://", "")
+    
+    results.append(f"HTTP PING {display_host}")
+    results.append(f"Sending HTTP HEAD requests...")
+    results.append("")
+    
+    latencies = []
+    successful = 0
+    
+    async with httpx.AsyncClient() as client:
+        for i in range(count):
+            try:
+                start_time = time.time()
+                response = await client.head(url, timeout=5.0, follow_redirects=True)
+                end_time = time.time()
+                
+                latency = (end_time - start_time) * 1000
+                latencies.append(latency)
+                successful += 1
+                
+                results.append(f"HTTP {response.status_code} from {display_host} - seq={i+1} time={latency:.2f} ms")
+                
+            except httpx.TimeoutException:
+                results.append(f"Request to {display_host} - seq={i+1} timed out")
+            except Exception as e:
+                results.append(f"Request to {display_host} - seq={i+1} failed: {str(e)}")
+            
+            await asyncio.sleep(0.5)
+    
+    results.append("")
+    results.append(f"--- {display_host} HTTP ping statistics ---")
+    results.append(f"{count} requests, {successful} successful, {((count-successful)/count)*100:.1f}% failed")
+    
+    if latencies:
+        results.append(f"rtt min/avg/max = {min(latencies):.2f}/{sum(latencies)/len(latencies):.2f}/{max(latencies):.2f} ms")
+    
+    return "\n".join(results)
+
 # Routes
 @api_router.get("/")
 async def root():
@@ -144,18 +235,31 @@ async def get_locations():
 
 @api_router.post("/network/ping", response_model=NetworkTestResult)
 async def run_ping(request: NetworkTestRequest):
-    """Execute real ping command"""
+    """Execute ping using TCP/HTTP method (ICMP blocked in container)"""
     target = sanitize_target(request.target)
     
-    # Run ping: 4 packets, 1 second interval, 10 second timeout
-    cmd = ["ping", "-c", "4", "-W", "5", target]
-    result = await run_command(cmd, timeout=20)
+    # Try TCP ping first (port 80 or 443)
+    try:
+        import socket
+        # Resolve hostname
+        ip = socket.gethostbyname(target)
+        
+        # Use HTTP ping for domains, TCP ping for IPs
+        if target != ip:  # It's a domain
+            result = await http_ping(target, count=4)
+        else:  # It's an IP
+            result = await tcp_ping(target, port=80, count=4)
+            
+    except socket.gaierror:
+        result = f"Could not resolve hostname: {target}"
+    except Exception as e:
+        result = f"Ping failed: {str(e)}"
     
     test_result = NetworkTestResult(
         test_type="ping",
         target=target,
         source_location="demo",
-        source_name="Demo Server (Real)",
+        source_name="Demo Server (TCP/HTTP Ping)",
         result=result
     )
     
@@ -191,18 +295,27 @@ async def run_traceroute(request: NetworkTestRequest):
 
 @api_router.post("/network/mtr", response_model=NetworkTestResult)
 async def run_mtr(request: NetworkTestRequest):
-    """Execute real MTR command"""
+    """Execute traceroute with timing (MTR alternative - ICMP blocked in container)"""
     target = sanitize_target(request.target)
     
-    # Run mtr: report mode, 5 cycles
-    cmd = ["mtr", "--report", "--report-cycles", "5", target]
-    result = await run_command(cmd, timeout=60)
+    # Use traceroute as MTR is not available in container
+    # Run traceroute with timing info
+    cmd = ["traceroute", "-m", "15", "-w", "2", target]
+    traceroute_result = await run_command(cmd, timeout=45)
+    
+    # Format as MTR-like output
+    lines = ["MTR Report (via Traceroute - ICMP restricted in container)", "=" * 60, ""]
+    lines.append(traceroute_result)
+    lines.append("")
+    lines.append("Note: Full MTR requires ICMP privileges. Using traceroute output.")
+    
+    result = "\n".join(lines)
     
     test_result = NetworkTestResult(
         test_type="mtr",
         target=target,
         source_location="demo",
-        source_name="Demo Server (Real)",
+        source_name="Demo Server (Traceroute Mode)",
         result=result
     )
     
