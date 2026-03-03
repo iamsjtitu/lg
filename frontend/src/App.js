@@ -778,6 +778,77 @@ function App() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Test Your Server - iperf3 Commands */}
+            <Card className="bento-card border-emerald-200 bg-emerald-50/30" data-testid="iperf-commands-panel">
+              <CardHeader className="border-b border-emerald-100">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Terminal className="w-5 h-5 text-emerald-600" />
+                  Test Your Server
+                  <Badge className="bg-emerald-600 text-white ml-2">iperf3</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-600 mb-4">
+                  Run these commands on your server to test bandwidth to/from our Looking Glass server:
+                </p>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* Incoming (Download from your server) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Download className="w-4 h-4 text-emerald-600" />
+                      <span className="font-medium text-sm">Incoming (Download)</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Test download speed from your server to us</p>
+                    <div className="bg-[#0F172A] rounded-lg p-3 font-mono text-sm text-green-400 flex items-center justify-between group">
+                      <code>iperf3 -c {window.location.hostname} -p 5201 -P 4</code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`iperf3 -c ${window.location.hostname} -p 5201 -P 4`);
+                          toast.success("Command copied!");
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-700 rounded"
+                        data-testid="copy-incoming-cmd"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Outgoing (Upload to your server) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Upload className="w-4 h-4 text-amber-600" />
+                      <span className="font-medium text-sm">Outgoing (Upload)</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Test upload speed from us to your server</p>
+                    <div className="bg-[#0F172A] rounded-lg p-3 font-mono text-sm text-green-400 flex items-center justify-between group">
+                      <code>iperf3 -c {window.location.hostname} -p 5201 -P 4 -R</code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`iperf3 -c ${window.location.hostname} -p 5201 -P 4 -R`);
+                          toast.success("Command copied!");
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-700 rounded"
+                        data-testid="copy-outgoing-cmd"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-slate-100 rounded-lg text-xs text-slate-600">
+                  <strong>Note:</strong> Make sure iperf3 is installed on your server. 
+                  Install: <code className="bg-white px-1 rounded">apt install iperf3</code> or <code className="bg-white px-1 rounded">yum install iperf3</code>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
