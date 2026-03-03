@@ -529,6 +529,55 @@ async def get_test_history(limit: int = 20):
     tests = await db.test_history.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return {"history": tests}
 
+@api_router.get("/iperf-servers")
+async def get_iperf_servers():
+    """Get list of public iperf3 servers"""
+    return {"servers": PUBLIC_IPERF_SERVERS}
+
+@api_router.post("/network/iperf", response_model=NetworkTestResult)
+async def run_iperf_test(request: IperfTestRequest):
+    """Execute iperf3 bandwidth test"""
+    # Validate server
+    server = sanitize_target(request.server)
+    
+    # Validate port
+    if not (1 <= request.port <= 65535):
+        raise HTTPException(status_code=400, detail="Invalid port number")
+    
+    # Validate duration (max 10 seconds for public servers)
+    duration = min(request.duration, 10)
+    
+    # Build iperf3 command
+    cmd = [
+        "iperf3",
+        "-c", server,
+        "-p", str(request.port),
+        "-t", str(duration),
+        "-f", "m",  # Output in Mbits
+    ]
+    
+    if request.reverse:
+        cmd.append("-R")  # Reverse mode (download instead of upload)
+    
+    result = await run_command(cmd, timeout=duration + 15)
+    
+    # Parse and format output
+    test_type = "iperf3-download" if request.reverse else "iperf3-upload"
+    
+    test_result = NetworkTestResult(
+        test_type=test_type,
+        target=f"{server}:{request.port}",
+        source_location="demo",
+        source_name="Demo Server (iperf3)",
+        result=result
+    )
+    
+    doc = test_result.model_dump()
+    doc['timestamp'] = doc['timestamp'].isoformat()
+    await db.test_history.insert_one(doc)
+    
+    return test_result
+
 # Include the router in the main app
 app.include_router(api_router)
 
