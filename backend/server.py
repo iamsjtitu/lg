@@ -597,3 +597,20 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+@app.on_event("startup")
+async def startup_event():
+    """Start iperf3 server on startup"""
+    import subprocess
+    try:
+        # Kill any existing iperf3 server
+        subprocess.run(["pkill", "-f", "iperf3 -s"], capture_output=True)
+        # Start iperf3 server on port 5201
+        subprocess.Popen(
+            ["iperf3", "-s", "-p", "5201"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        logger.info("iperf3 server started on port 5201")
+    except Exception as e:
+        logger.error(f"Failed to start iperf3 server: {e}")
