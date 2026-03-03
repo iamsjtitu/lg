@@ -1,34 +1,170 @@
-.App-logo {
-    height: 40vmin;
+/* Host9x Looking Glass - Custom Styles */
+
+.hero-section {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
+    position: relative;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1742071596264-e1d39820c1e8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxzZXJ2ZXIlMjBkYXRhY2VudGVyJTIwd2hpdGUlMjBtaW5pbWFsaXN0fGVufDB8fHx8MTc3MjUzNDEzMHww&ixlib=rb-4.1.0&q=85');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.05;
     pointer-events: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
+.glass-header {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.server-location-map {
+    background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.location-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #2563EB;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+    transition: all 0.3s ease;
+}
+
+.location-dot:hover,
+.location-dot.active {
+    transform: translate(-50%, -50%) scale(1.5);
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.3);
+}
+
+.location-dot::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: inherit;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+    75%, 100% {
+        transform: scale(2);
+        opacity: 0;
     }
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Speed Test Gauge */
+.gauge-container {
+    position: relative;
+    width: 200px;
+    height: 120px;
 }
 
-.App-link {
-    color: #61dafb;
+.gauge-background {
+    fill: none;
+    stroke: #E2E8F0;
+    stroke-width: 20;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
+.gauge-fill {
+    fill: none;
+    stroke: #2563EB;
+    stroke-width: 20;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease-in-out;
+}
+
+.gauge-fill.download {
+    stroke: #10B981;
+}
+
+.gauge-fill.upload {
+    stroke: #F59E0B;
+}
+
+/* Terminal Typing Effect */
+.terminal-typing {
+    overflow: hidden;
+    border-right: 2px solid #10B981;
+    animation: blink 0.7s step-end infinite;
+}
+
+@keyframes blink {
+    from, to { border-color: transparent; }
+    50% { border-color: #10B981; }
+}
+
+/* Card Hover Effects */
+.feature-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+}
+
+/* Loading Animation */
+.loading-dots span {
+    animation: loadingDots 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes loadingDots {
+    0%, 80%, 100% {
+        transform: scale(0);
     }
+    40% {
+        transform: scale(1);
+    }
+}
+
+/* IP Input Field */
+.ip-input {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+}
+
+/* Results Animation */
+.result-line {
+    animation: resultAppear 0.3s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes resultAppear {
     to {
-        transform: rotate(360deg);
+        opacity: 1;
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .bento-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .terminal-content {
+        font-size: 12px;
+    }
+    
+    .gauge-container {
+        width: 160px;
+        height: 100px;
     }
 }
