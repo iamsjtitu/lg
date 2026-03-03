@@ -78,6 +78,22 @@ class DNSLookupRequest(BaseModel):
 class WhoisRequest(BaseModel):
     domain: str
 
+class IperfTestRequest(BaseModel):
+    server: str
+    port: int = 5201
+    duration: int = 5
+    reverse: bool = False  # True = download test, False = upload test
+
+# Public iperf3 servers list
+PUBLIC_IPERF_SERVERS = [
+    {"name": "Clouvider London", "host": "lon.speedtest.clouvider.net", "port": 5200},
+    {"name": "Clouvider NYC", "host": "nyc.speedtest.clouvider.net", "port": 5200},
+    {"name": "Clouvider LA", "host": "la.speedtest.clouvider.net", "port": 5200},
+    {"name": "Bouygues Paris", "host": "paris.testdebit.info", "port": 5200},
+    {"name": "Online.net Paris", "host": "ping.online.net", "port": 5200},
+    {"name": "Serverius NL", "host": "speedtest.serverius.net", "port": 5002},
+]
+
 # Security: Validate and sanitize input
 def sanitize_target(target: str) -> str:
     """Sanitize target to prevent command injection"""
