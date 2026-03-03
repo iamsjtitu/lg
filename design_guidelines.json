@@ -1,0 +1,134 @@
+{
+  "identity": {
+    "persona": "E1",
+    "mission": "Create a high-precision, minimalist Network Looking Glass that feels like a professional sysadmin tool but looks like a Swiss design poster.",
+    "principles": [
+      "Fusion: Terminal aesthetics mixed with Swiss typography.",
+      "Emotion: Reliability, Speed, Clarity.",
+      "Content: Data is the hero. No fluff.",
+      "Contrast: High contrast for readability (Black on White).",
+      "Spacing: Generous padding to prevent data density from feeling cluttered."
+    ]
+  },
+  "theme": {
+    "mode": "light",
+    "strategy": "The Performance Pro (Light Variant)",
+    "palette": {
+      "background": "#FFFFFF",
+      "surface": "#F8FAFC",
+      "surface_highlight": "#F1F5F9",
+      "primary": "#0F172A",
+      "secondary": "#64748B",
+      "accent": "#2563EB",
+      "success": "#10B981",
+      "error": "#EF4444",
+      "warning": "#F59E0B",
+      "border": "#E2E8F0"
+    }
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Chivo, sans-serif",
+      "weight": "900",
+      "tracking": "-0.02em",
+      "usage": "Main page titles, section headers. Big, bold, authoritative."
+    },
+    "body": {
+      "font_family": "Inter, sans-serif",
+      "weight": "400",
+      "usage": "General UI text, labels, instructions."
+    },
+    "mono": {
+      "font_family": "JetBrains Mono, monospace",
+      "weight": "500",
+      "usage": "IP addresses, ping results, traceroute data, terminal outputs."
+    }
+  },
+  "layout": {
+    "grid_system": "Bento Grid (Mode B - High Density)",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "spacing": {
+      "section_gap": "py-12",
+      "component_gap": "gap-6",
+      "internal_padding": "p-6"
+    },
+    "z_index": {
+      "header": 50,
+      "modal": 100,
+      "toast": 110
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-white hover:bg-primary/90 rounded-md px-6 py-2 font-medium transition-all active:scale-95 shadow-sm",
+      "secondary": "bg-white text-primary border border-input hover:bg-accent hover:text-accent-foreground rounded-md px-6 py-2 font-medium transition-all active:scale-95 shadow-sm",
+      "ghost": "hover:bg-accent hover:text-accent-foreground rounded-md px-4 py-2 transition-colors"
+    },
+    "cards": {
+      "style": "bg-white border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200",
+      "header": "p-6 border-b border-border",
+      "content": "p-6"
+    },
+    "inputs": {
+      "style": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "terminal": {
+      "style": "bg-[#0F172A] text-[#F8FAFC] font-mono rounded-lg p-4 overflow-x-auto shadow-inner border border-gray-800",
+      "text_size": "text-sm leading-relaxed"
+    },
+    "tabs": {
+      "list": "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+      "trigger": "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-md bg-white/70 border border-white/20 shadow-lg (Use for sticky headers or floating controls)",
+    "gradients": "No full-screen gradients. Use subtle mesh gradients in specific 'hero' areas only if needed.",
+    "shadows": "shadow-sm for cards, shadow-lg for dropdowns/modals. Keep it subtle.",
+    "borders": "1px solid #E2E8F0. Crisp edges."
+  },
+  "motion": {
+    "duration": "duration-200",
+    "ease": "ease-out",
+    "hover": "hover:-translate-y-0.5 transition-transform",
+    "page_load": "animate-in fade-in slide-in-from-bottom-4 duration-500"
+  },
+  "assets": {
+    "icons": "Lucide React (default). Use 'Server', 'Activity', 'Globe', 'Zap', 'MapPin', 'Terminal' icons.",
+    "images": [
+      {
+        "category": "hero_background",
+        "url": "https://images.unsplash.com/photo-1742071596264-e1d39820c1e8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxzZXJ2ZXIlMjBkYXRhY2VudGVyJTIwd2hpdGUlMjBtaW5pbWFsaXN0fGVufDB8fHx8MTc3MjUzNDEzMHww&ixlib=rb-4.1.0&q=85",
+        "description": "Minimalist white server room. Use as a subtle background with low opacity (10-20%) in the hero section."
+      },
+      {
+        "category": "speed_test_bg",
+        "url": "https://images.unsplash.com/photo-1594345558880-804452ebc6b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHw0fHxuZXR3b3JrJTIwY29ubmVjdGl2aXR5JTIwYWJzdHJhY3QlMjBsaWdodHxlbnwwfHx8fDE3NzI1MzQxMzR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract optic fiber. Use for the Speed Test section background or card visual."
+      }
+    ]
+  },
+  "accessibility": {
+    "contrast": "Ensure text is #0F172A on #FFFFFF or #F8FAFC. Muted text should be #64748B.",
+    "focus_states": "Visible focus rings on all interactive elements.",
+    "aria_labels": "Required for all icon-only buttons."
+  },
+  "instructions_to_main_agent": [
+    "1. Setup: Install 'lucide-react', 'recharts' (for speed test graphs), 'framer-motion' (for smooth transitions).",
+    "2. Fonts: Import 'Chivo' and 'JetBrains Mono' from Google Fonts.",
+    "3. Layout: Create a main 'Dashboard' layout. The top section is the 'Control Panel' (Source Location, Target IP, Test Type). The bottom section is the 'Results Terminal'.",
+    "4. Components: Use Shadcn 'Card' for the layout structure. Use 'Tabs' for switching between Ping, Traceroute, MTR.",
+    "5. Map: Create a simple visual representation of the 4 locations (Netherlands, Germany, Italy, Mumbai) using a static map image or simple SVG dots on a world map background.",
+    "6. Terminal: The results area MUST look like a terminal window (Dark background, Monospace text) to contrast with the Light theme UI. This is a key 'E1' design choice for this tool.",
+    "7. Speed Test: Use a gauge or simple progress bar visualization.",
+    "8. Mobile: Ensure the terminal window is scrollable horizontally on mobile."
+  ],
+  "universal_guidelines": [
+    "Avoid generic 'Bootstrap' looks. Use custom padding and shadows.",
+    "Don't use 'Inter' for headings. Use 'Chivo'.",
+    "Use 'sonner' for toast notifications.",
+    "All interactive elements must have 'data-testid'.",
+    "No gradients on text.",
+    "Use 'lucide-react' for icons."
+  ]
+}
