@@ -643,6 +643,67 @@ function App() {
                       )}
                     </Button>
                   </TabsContent>
+
+                  {/* iperf3 Bandwidth Test */}
+                  <TabsContent value="iperf" className="mt-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Real bandwidth test using iperf3 to public servers.
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <Select value={selectedIperfServer} onValueChange={setSelectedIperfServer}>
+                        <SelectTrigger data-testid="iperf-server-select">
+                          <SelectValue placeholder="Select iperf3 server" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {iperfServers.map((server) => (
+                            <SelectItem key={server.host} value={server.host}>
+                              {server.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={iperfMode} onValueChange={setIperfMode}>
+                        <SelectTrigger data-testid="iperf-mode-select">
+                          <SelectValue placeholder="Test Mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="download">
+                            <div className="flex items-center gap-2">
+                              <Download className="w-4 h-4" />
+                              Download Test
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="upload">
+                            <div className="flex items-center gap-2">
+                              <Upload className="w-4 h-4" />
+                              Upload Test
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      onClick={runIperfTest}
+                      disabled={isIperfTesting}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                      data-testid="run-iperf-btn"
+                    >
+                      {isIperfTesting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Running iperf3 {iperfMode}...
+                        </>
+                      ) : (
+                        <>
+                          <Wifi className="w-4 h-4 mr-2" />
+                          Run iperf3 {iperfMode.charAt(0).toUpperCase() + iperfMode.slice(1)} Test
+                        </>
+                      )}
+                    </Button>
+                    <div className="text-xs text-slate-400 bg-slate-50 p-2 rounded">
+                      Test duration: 5 seconds • Results in Mbits/sec
+                    </div>
+                  </TabsContent>
                 </Tabs>
 
                 {/* Results Terminal */}
