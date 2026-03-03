@@ -843,7 +843,7 @@ function App() {
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
                     <span className="text-sm text-slate-600">Tools</span>
-                    <span className="text-xs text-slate-500">ping, traceroute, mtr, dig, whois</span>
+                    <span className="text-xs text-slate-500">ping, traceroute, mtr, dig, whois, iperf3</span>
                   </div>
                 </div>
               </CardContent>
